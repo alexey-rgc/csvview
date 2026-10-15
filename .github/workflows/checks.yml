@@ -1,0 +1,34 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.9', '3.13']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked --extra dev
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen pytest -q
+      - run: uv build
+      - name: Test the installed wheel, outside the editable environment
+        shell: bash
+        run: uv run --isolated --no-project --with dist/*.whl --with pytest pytest -q
+      - name: Check installed command
+        shell: bash
+        run: uv run --isolated --no-project --with dist/*.whl csvview --version
